@@ -41,7 +41,7 @@ async fn handle_dir<'a>(path: &Path, force: bool, generator: &'a Generator<'a>) 
     let movie_data = get_anime_data(subject_id)
         .await
         .with_context(|| "get_movie_info")?;
-    validate_movie_platform(&movie_data.subject.platform)?;
+    warn_if_non_theatrical_platform(&movie_data.subject.platform);
     let movie = Movie::from_bgm(movie_data);
     let poster_url = movie.poster.clone();
     let movie_nfo = generator.gen_movie_nfo(&movie)?;
@@ -69,14 +69,13 @@ async fn handle_dir<'a>(path: &Path, force: bool, generator: &'a Generator<'a>) 
     Ok(())
 }
 
-fn validate_movie_platform(platform: &str) -> Result<()> {
+fn warn_if_non_theatrical_platform(platform: &str) {
     if platform.trim() != "剧场版" {
-        bail!(
-            "Bangumi subject platform is {:?}, expected \"剧场版\"; refusing to create movie NFO",
+        warn!(
+            "Bangumi subject platform is {:?}, not \"剧场版\"; continuing because --movie-source explicitly selected movie mode",
             platform
         );
     }
-    Ok(())
 }
 
 fn movie_nfo_paths(path: &Path) -> Result<Vec<PathBuf>> {
@@ -111,10 +110,10 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
-    fn accepts_only_theatrical_bangumi_subjects() {
-        assert!(validate_movie_platform("剧场版").is_ok());
-        assert!(validate_movie_platform("TV").is_err());
-        assert!(validate_movie_platform("Web").is_err());
+    fn explicit_movie_mode_accepts_non_theatrical_platform_labels() {
+        warn_if_non_theatrical_platform("剧场版");
+        warn_if_non_theatrical_platform("OVA");
+        warn_if_non_theatrical_platform("TV");
     }
 
     #[test]
