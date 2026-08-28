@@ -79,7 +79,30 @@ with the same name to the episode media file and "nfo" extension. And there is a
 
 ### Anime movie folder
 
-This type is not supported yet.
+Anime movies follow Kodi's one-movie-per-folder convention. Keep movie sources separate from TV sources:
+
+```text
+<Movie source folder>/
+└── Spirited Away (2001)/
+    ├── Spirited Away (2001).mkv
+    └── dantalian.toml
+```
+
+The movie config only needs a Bangumi subject id:
+
+```toml
+subject_id = 311
+```
+
+Run movie scraping with:
+
+```sh
+dantalian --movie-source <movie source folder>
+```
+
+Dantalian verifies that the Bangumi subject platform is `剧场版`, then generates both `movie.nfo` and an NFO matching
+each video filename. It also downloads the Bangumi cover as `poster.jpg`. Existing NFO and poster files are preserved
+unless `--force` or `--force-all` is used.
 
 ## Folder settings
 
@@ -183,7 +206,7 @@ the `--force <anime folder name>` option to the command. You can specify multipl
 
 ## Roadmap
 
-- [ ] Anime Movie / "theater edition"
+- [x] Anime Movie / "theater edition"
 - [ ] BD file
 - [ ] DVD file
 - [x] Custom file pattern or fuzzy match.

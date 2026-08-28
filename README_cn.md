@@ -72,7 +72,29 @@ TV 动画遵循 TV 剧集的处理方式，详情参见：
 
 ### 动画电影文件夹/Anime Movie Folder
 
-尚未支持
+动画电影遵循 Kodi 的“一部电影一个文件夹”结构，电影源目录不要与 TV 动画源目录混用：
+
+```text
+<电影源目录>/
+└── 千与千寻 (2001)/
+    ├── 千与千寻 (2001).mkv
+    └── dantalian.toml
+```
+
+电影的配置文件只需填写 Bangumi Subject ID：
+
+```toml
+subject_id = 311
+```
+
+使用电影模式运行：
+
+```sh
+dantalian --movie-source <电影源目录>
+```
+
+Dantalian 会先确认 Bangumi 条目的平台为“剧场版”，随后同时生成 `movie.nfo` 和与每个视频同名的 NFO，
+并将 Bangumi 封面下载为本地 `poster.jpg`。除非使用 `--force` 或 `--force-all`，已有 NFO 和海报不会被覆盖。
 
 ## 文件夹设置
 
@@ -169,7 +191,7 @@ dantalian --source <source folders>
 
 ## Roadmap
 
-- [ ] 动画电影/剧场版
+- [x] 动画电影/剧场版
 - [ ] BD 文件
 - [ ] DVD 文件
 - [x] 自定义文件名或模糊匹配

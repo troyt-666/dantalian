@@ -35,6 +35,24 @@ impl Config {
         Ok(config)
     }
 
+    /// Parse the shared dantalian.toml for a movie without adding TV-only
+    /// episode matching fields. Movie folders only need a Bangumi subject id.
+    pub async fn parse_movie_subject(path: &Path) -> Result<u32> {
+        let filepath = path.join(DIR_CONFIG_NAME);
+        if filepath.exists() {
+            info!(ind: 2, "Parse movie config file");
+            let file = std::fs::read_to_string(filepath)?;
+            let cf: ConfigFile = toml::from_str(file.as_ref())?;
+            return Ok(cf.subject_id);
+        }
+
+        info!(ind: 2, "Not found movie config file, create one");
+        let config = Self::parse_from_dirname(path).await?;
+        let mut file = File::create(filepath)?;
+        file.write_all(format!("subject_id = {}\n", config.subject_id).as_bytes())?;
+        Ok(config.subject_id)
+    }
+
     async fn parse_from_file(filepath: &Path) -> Result<Config> {
         info!(ind: 2, "Parse config file");
         let file = std::fs::read_to_string(filepath)?;
