@@ -169,17 +169,17 @@ impl Movie {
             if has_role(&person.relation, &["脚本", "编剧"]) {
                 credits.push(person.name.clone());
             }
-            if matches!(person.person_type, PersonType::Company) {
-                let priority = if has_role(&person.relation, &["动画制作"]) {
-                    2
-                } else if has_role(&person.relation, &["制作", "製作"]) {
-                    1
-                } else {
-                    0
-                };
-                if priority > studio.as_ref().map_or(0, |(current, _)| *current) {
-                    studio = Some((priority, person.name));
-                }
+            let priority = if has_role(&person.relation, &["动画制作"]) {
+                2
+            } else if matches!(person.person_type, PersonType::Company)
+                && has_role(&person.relation, &["制作", "製作"])
+            {
+                1
+            } else {
+                0
+            };
+            if priority > studio.as_ref().map_or(0, |(current, _)| *current) {
+                studio = Some((priority, person.name));
             }
         }
 
@@ -403,7 +403,9 @@ mod movie_tests {
         let persons = vec![Person {
             id: 1,
             images: None,
-            person_type: PersonType::Company,
+            // Bangumi sometimes misclassifies studios as a person even when
+            // their relation is explicitly animation production.
+            person_type: PersonType::Person,
             career: vec![],
             name: "Studio Ghibli".into(),
             relation: "动画制作".into(),
