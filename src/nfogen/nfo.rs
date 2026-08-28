@@ -161,7 +161,7 @@ impl Movie {
 
         let mut directors = Vec::new();
         let mut credits = Vec::new();
-        let mut studio = None;
+        let mut studio: Option<(u8, String)> = None;
         for person in persons {
             if has_role(&person.relation, &["导演", "監督"]) {
                 directors.push(person.name.clone());
@@ -169,11 +169,17 @@ impl Movie {
             if has_role(&person.relation, &["脚本", "编剧"]) {
                 credits.push(person.name.clone());
             }
-            if studio.is_none()
-                && matches!(person.person_type, PersonType::Company)
-                && has_role(&person.relation, &["动画制作", "制作", "製作"])
-            {
-                studio = Some(person.name);
+            if matches!(person.person_type, PersonType::Company) {
+                let priority = if has_role(&person.relation, &["动画制作"]) {
+                    2
+                } else if has_role(&person.relation, &["制作", "製作"]) {
+                    1
+                } else {
+                    0
+                };
+                if priority > studio.as_ref().map_or(0, |(current, _)| *current) {
+                    studio = Some((priority, person.name));
+                }
             }
         }
 
@@ -217,7 +223,7 @@ impl Movie {
             tags,
             premiered: subject.date.as_deref().unwrap_or("*").to_string(),
             status: None,
-            studio,
+            studio: studio.map(|(_, name)| name),
             directors,
             credits,
             actors,
@@ -439,5 +445,57 @@ mod movie_tests {
     fn movie_does_not_treat_assistant_director_as_director() {
         assert!(has_role("原作 脚本 导演", &["导演", "監督"]));
         assert!(!has_role("助理导演", &["导演", "監督"]));
+    }
+
+    #[test]
+    fn movie_prefers_animation_studio_over_generic_producer() {
+        let mut bgm = BgmAnime {
+            subject: Subject {
+                id: 1,
+                subject_type: SubjectType::Anime,
+                name: "Movie".into(),
+                name_cn: String::new(),
+                summary: String::new(),
+                nsfw: false,
+                date: Some("2000-01-01".into()),
+                platform: "剧场版".into(),
+                images: None,
+                eps: Some(1),
+                total_episodes: Some(1),
+                rating: rating(),
+                collection: SubjectCollection {
+                    wish: 0,
+                    collect: 0,
+                    doing: 0,
+                    on_hold: 0,
+                    dropped: 0,
+                },
+                tags: vec![],
+            },
+            episodes: vec![],
+            persons: vec![],
+            characters: vec![],
+        };
+        bgm.persons.push(Person {
+            id: 1,
+            images: None,
+            person_type: PersonType::Company,
+            career: vec![],
+            name: "Publisher".into(),
+            relation: "制作".into(),
+        });
+        bgm.persons.push(Person {
+            id: 2,
+            images: None,
+            person_type: PersonType::Company,
+            career: vec![],
+            name: "Animation Studio".into(),
+            relation: "动画制作".into(),
+        });
+
+        assert_eq!(
+            Movie::from_bgm(bgm).studio.as_deref(),
+            Some("Animation Studio")
+        );
     }
 }
