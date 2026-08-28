@@ -163,7 +163,7 @@ impl Movie {
         let mut credits = Vec::new();
         let mut studio: Option<(u8, String)> = None;
         for person in persons {
-            if has_role(&person.relation, &["导演", "監督"]) {
+            if is_primary_director_role(&person.relation) {
                 directors.push(person.name.clone());
             }
             if has_role(&person.relation, &["脚本", "编剧"]) {
@@ -235,6 +235,16 @@ fn has_role(relation: &str, expected: &[&str]) -> bool {
     relation
         .split_whitespace()
         .any(|role| expected.contains(&role))
+}
+
+fn is_primary_director_role(relation: &str) -> bool {
+    const QUALIFIERS: &[&str] = &[
+        "CG", "3D", "副", "助理", "动作", "作画", "动画", "摄影", "美术", "音响", "音乐",
+    ];
+    has_role(relation, &["导演", "監督"])
+        && !relation
+            .split_whitespace()
+            .any(|role| QUALIFIERS.contains(&role))
 }
 
 fn runtime_minutes(episode: &crate::bangumi::Episode) -> Option<u32> {
@@ -445,8 +455,10 @@ mod movie_tests {
 
     #[test]
     fn movie_does_not_treat_assistant_director_as_director() {
-        assert!(has_role("原作 脚本 导演", &["导演", "監督"]));
-        assert!(!has_role("助理导演", &["导演", "監督"]));
+        assert!(is_primary_director_role("原作 脚本 导演"));
+        assert!(!is_primary_director_role("助理导演"));
+        assert!(!is_primary_director_role("CG 导演"));
+        assert!(!is_primary_director_role("音响 監督"));
     }
 
     #[test]

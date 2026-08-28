@@ -31,18 +31,21 @@ pub async fn dantalian_movie<F: Fn(String) -> bool>(source: &Path, is_force: &F)
 }
 
 async fn handle_dir<'a>(path: &Path, force: bool, generator: &'a Generator<'a>) -> Result<()> {
-    let subject_id = Config::parse_movie_subject(path).await?;
+    let config = Config::parse_movie(path).await?;
     let nfo_paths = movie_nfo_paths(path)?;
     let poster_path = path.join(MOVIE_POSTER_NAME);
     if !force && nfo_paths.iter().all(|path| path.exists()) && poster_path.exists() {
         return Ok(());
     }
 
-    let movie_data = get_anime_data(subject_id)
+    let movie_data = get_anime_data(config.subject_id)
         .await
         .with_context(|| "get_movie_info")?;
     warn_if_non_theatrical_platform(&movie_data.subject.platform);
-    let movie = Movie::from_bgm(movie_data);
+    let mut movie = Movie::from_bgm(movie_data);
+    if let Some(premiered) = config.premiered {
+        apply_premiered_override(&mut movie, &premiered)?;
+    }
     let poster_url = movie.poster.clone();
     let movie_nfo = generator.gen_movie_nfo(&movie)?;
 
@@ -66,6 +69,26 @@ async fn handle_dir<'a>(path: &Path, force: bool, generator: &'a Generator<'a>) 
             error
         );
     }
+    Ok(())
+}
+
+fn apply_premiered_override(movie: &mut Movie, premiered: &str) -> Result<()> {
+    let bytes = premiered.as_bytes();
+    if bytes.len() != 10
+        || bytes[4] != b'-'
+        || bytes[7] != b'-'
+        || !bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| matches!(index, 4 | 7) || byte.is_ascii_digit())
+    {
+        bail!("movie_premiered must use YYYY-MM-DD format");
+    }
+    let year = premiered[..4]
+        .parse()
+        .with_context(|| "parse movie_premiered year")?;
+    movie.premiered = premiered.to_string();
+    movie.year = Some(year);
     Ok(())
 }
 
@@ -114,6 +137,33 @@ mod tests {
         warn_if_non_theatrical_platform("剧场版");
         warn_if_non_theatrical_platform("OVA");
         warn_if_non_theatrical_platform("TV");
+    }
+
+    #[test]
+    fn explicit_movie_premiere_overrides_home_video_date() {
+        let mut movie = Movie {
+            uid: 1,
+            title: String::new(),
+            original_title: String::new(),
+            rating_value: 0.0,
+            rating_votes: 0,
+            plot: String::new(),
+            poster: None,
+            year: Some(2020),
+            runtime: None,
+            genres: vec![],
+            tags: vec![],
+            premiered: "2020-02-27".into(),
+            status: None,
+            studio: None,
+            directors: vec![],
+            credits: vec![],
+            actors: vec![],
+        };
+        apply_premiered_override(&mut movie, "2019-06-15").unwrap();
+        assert_eq!(movie.premiered, "2019-06-15");
+        assert_eq!(movie.year, Some(2019));
+        assert!(apply_premiered_override(&mut movie, "2019").is_err());
     }
 
     #[test]

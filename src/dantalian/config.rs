@@ -13,6 +13,7 @@ struct ConfigFile {
     subject_id: u32,
     episode_re: Option<String>,
     episode_offset: Option<i32>,
+    movie_premiered: Option<String>,
 }
 
 #[derive(Debug)]
@@ -20,6 +21,12 @@ pub struct Config {
     pub subject_id: u32,
     pub episode_re: Regex,
     pub episode_offset: i32,
+}
+
+#[derive(Debug)]
+pub struct MovieConfig {
+    pub subject_id: u32,
+    pub premiered: Option<String>,
 }
 
 const DIR_CONFIG_NAME: &str = "dantalian.toml";
@@ -37,20 +44,26 @@ impl Config {
 
     /// Parse the shared dantalian.toml for a movie without adding TV-only
     /// episode matching fields. Movie folders only need a Bangumi subject id.
-    pub async fn parse_movie_subject(path: &Path) -> Result<u32> {
+    pub async fn parse_movie(path: &Path) -> Result<MovieConfig> {
         let filepath = path.join(DIR_CONFIG_NAME);
         if filepath.exists() {
             info!(ind: 2, "Parse movie config file");
             let file = std::fs::read_to_string(filepath)?;
             let cf: ConfigFile = toml::from_str(file.as_ref())?;
-            return Ok(cf.subject_id);
+            return Ok(MovieConfig {
+                subject_id: cf.subject_id,
+                premiered: cf.movie_premiered,
+            });
         }
 
         info!(ind: 2, "Not found movie config file, create one");
         let config = Self::parse_from_dirname(path).await?;
         let mut file = File::create(filepath)?;
         file.write_all(format!("subject_id = {}\n", config.subject_id).as_bytes())?;
-        Ok(config.subject_id)
+        Ok(MovieConfig {
+            subject_id: config.subject_id,
+            premiered: None,
+        })
     }
 
     async fn parse_from_file(filepath: &Path) -> Result<Config> {
@@ -102,6 +115,7 @@ impl Config {
             subject_id: self.subject_id,
             episode_re: Some(self.episode_re.to_string()),
             episode_offset: Some(self.episode_offset),
+            movie_premiered: None,
         })?;
         let mut f = File::create(filepath)?;
         f.write_all(&file_content.into_bytes())?;
