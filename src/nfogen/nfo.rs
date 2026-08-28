@@ -10,15 +10,15 @@ pub const TVSHOW_NFO_NAME: &str = "tvshow.nfo";
 // This file must be tv show's folder's root.
 #[derive(Serialize, Debug)]
 pub struct TVShow {
-    pub uid: u32,
     pub title: String,
     pub original_title: String,
-    pub rating_value: f64,
-    pub rating_votes: u32,
-    pub has_sp: bool,
+    pub ratings: Vec<Rating>,
+    pub unique_ids: Vec<UniqueId>,
+    pub season_count: u32,
     pub eps_count: Option<u32>,
     pub plot: String,
     pub poster: Option<String>,
+    pub fanart: Option<String>,
     pub genres: Vec<String>,
     pub tags: Vec<String>,
     pub premiered: String,
@@ -35,21 +35,39 @@ pub struct Actor {
     pub thumb: String,
 }
 
+#[derive(Serialize, Debug, Clone)]
+pub struct Rating {
+    pub name: String,
+    pub max: u32,
+    pub is_default: bool,
+    pub value: f64,
+    pub votes: Option<u32>,
+}
+
+#[derive(Serialize, Debug, Clone)]
+pub struct UniqueId {
+    pub kind: String,
+    pub is_default: bool,
+    pub value: String,
+}
+
 pub const TVSHOW_TEMPLATE: &str = r#"<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <tvshow>
     <title>{title}</title>
     <originaltitle>{original_title}</originaltitle>
-    <ratings>
-        <rating name="bangumi" max="10" default="true">
-            <value>{rating_value}</value>
-            <votes>{rating_votes}</votes>
-        </rating>
+    <ratings>{{ for r in ratings }}
+        <rating name="{r.name}" max="{r.max}" default="{{ if r.is_default }}true{{ else }}false{{ endif }}">
+            <value>{r.value}</value>{{ if r.votes }}
+            <votes>{r.votes}</votes>{{ endif }}
+        </rating>{{ endfor }}
     </ratings>
-    <season>{{ if has_sp }}2{{ else }}1{{ endif }}</season>
+    <season>{season_count}</season>
     {{ if eps_count }}<episode>{eps_count}</episode>{{ endif }}
     <plot>{plot}</plot>
-    {{ if poster }}<thumb aspect="poster" preview="{poster}">{poster}</thumb>{{ endif }}
-    <uniqueid type="bangumi" default="true">{uid}</uniqueid>{{ for g in genres }}
+    {{ if poster }}<thumb aspect="poster" preview="{poster}">{poster}</thumb>{{ endif }}{{ if fanart }}
+    <fanart><thumb>{fanart}</thumb></fanart>{{ endif }}
+    {{ for u in unique_ids }}<uniqueid type="{u.kind}" default="{{ if u.is_default }}true{{ else }}false{{ endif }}">{u.value}</uniqueid>
+    {{ endfor }}{{ for g in genres }}
     <genre>{g}</genre>{{ endfor }}{{ for t in tags }}
     <tag>{t}</tag>{{ endfor }}
     <premiered>{premiered}</premiered>{{ if status }}
@@ -68,15 +86,17 @@ pub const TVSHOW_TEMPLATE: &str = r#"<?xml version="1.0" encoding="UTF-8" standa
 // place alongside of media file, and use same file name.
 #[derive(Serialize, Debug)]
 pub struct Episode {
-    pub uid: u32,
     pub title: String,
     pub original_title: String,
     pub show_title: String,
-    pub rating_value: Option<f64>,
-    pub rating_votes: Option<u32>,
+    pub ratings: Vec<Rating>,
+    pub unique_ids: Vec<UniqueId>,
+    pub season: u32,
     pub ep_index: String,
     pub is_sp: bool,
     pub plot: String,
+    pub thumb: Option<String>,
+    pub runtime: Option<u32>,
     pub directors: Rc<[String]>,
     pub credits: Rc<[String]>,
     pub premiered: String,
@@ -90,17 +110,20 @@ pub const EPISODE_TEMPLATE: &str = r#"<?xml version="1.0" encoding="UTF-8" stand
 <episodedetails>
     <title>{title}</title>
     <originaltitle>{original_title}</originaltitle>
-    <showtitle>{show_title}</showtitle>{{ if rating_value }}
-    <ratings>
-        <rating name="bangumi" max="10" default="true">
-            <value>{rating_value}</value>
-            {{ if rating_votes }}<votes>{rating_votes}</votes>{{ endif }}
-        </rating>
+    <showtitle>{show_title}</showtitle>{{ if ratings }}
+    <ratings>{{ for r in ratings }}
+        <rating name="{r.name}" max="{r.max}" default="{{ if r.is_default }}true{{ else }}false{{ endif }}">
+            <value>{r.value}</value>{{ if r.votes }}
+            <votes>{r.votes}</votes>{{ endif }}
+        </rating>{{ endfor }}
     </ratings>{{ endif }}
-    <season>{{ if is_sp }}0{{ else }}1{{ endif }}</season>
+    <season>{season}</season>
     <episode>{ep_index}</episode>
-    <plot>{plot}</plot>
-    <uniqueid type="bangumi" default="true">{uid}</uniqueid>{{ for c in credits }}
+    <plot>{plot}</plot>{{ if thumb }}
+    <thumb>{thumb}</thumb>{{ endif }}{{ if runtime }}
+    <runtime>{runtime}</runtime>{{ endif }}
+    {{ for u in unique_ids }}<uniqueid type="{u.kind}" default="{{ if u.is_default }}true{{ else }}false{{ endif }}">{u.value}</uniqueid>
+    {{ endfor }}{{ for c in credits }}
     <credits>{c}</credits>{{ endfor }}{{ for d in directors }}
     <director>{d}</director>{{ endfor }}
     <premiered>{premiered}</premiered>{{ if status }}
@@ -120,13 +143,13 @@ pub const MOVIE_NFO_NAME: &str = "movie.nfo";
 
 #[derive(Serialize, Debug)]
 pub struct Movie {
-    pub uid: u32,
     pub title: String,
     pub original_title: String,
-    pub rating_value: f64,
-    pub rating_votes: u32,
+    pub ratings: Vec<Rating>,
+    pub unique_ids: Vec<UniqueId>,
     pub plot: String,
     pub poster: Option<String>,
+    pub fanart: Option<String>,
     pub year: Option<u32>,
     pub runtime: Option<u32>,
     pub genres: Vec<String>,
@@ -210,13 +233,23 @@ impl Movie {
         };
 
         Self {
-            uid: subject.id,
             title,
             original_title: subject.name,
-            rating_value: subject.rating.score,
-            rating_votes: subject.rating.total,
+            ratings: vec![Rating {
+                name: "bangumi".into(),
+                max: 10,
+                is_default: true,
+                value: subject.rating.score,
+                votes: Some(subject.rating.total),
+            }],
+            unique_ids: vec![UniqueId {
+                kind: "bangumi".into(),
+                is_default: true,
+                value: subject.id.to_string(),
+            }],
             plot: subject.summary,
             poster: subject.images.map(|img| img.large),
+            fanart: None,
             year,
             runtime,
             genres,
@@ -293,15 +326,17 @@ pub const MOVIE_TEMPLATE: &str = r#"<?xml version="1.0" encoding="UTF-8" standal
 <movie>
     <title>{title}</title>
     <originaltitle>{original_title}</originaltitle>
-    <ratings>
-        <rating name="bangumi" max="10" default="true">
-            <value>{rating_value}</value>
-            <votes>{rating_votes}</votes>
-        </rating>
+    <ratings>{{ for r in ratings }}
+        <rating name="{r.name}" max="{r.max}" default="{{ if r.is_default }}true{{ else }}false{{ endif }}">
+            <value>{r.value}</value>{{ if r.votes }}
+            <votes>{r.votes}</votes>{{ endif }}
+        </rating>{{ endfor }}
     </ratings>
     <plot>{plot}</plot>
-    {{ if poster }}<thumb aspect="poster" preview="{poster}">{poster}</thumb>{{ endif }}
-    <uniqueid type="bangumi" default="true">{uid}</uniqueid>{{ for g in genres }}
+    {{ if poster }}<thumb aspect="poster" preview="{poster}">{poster}</thumb>{{ endif }}{{ if fanart }}
+    <fanart><thumb>{fanart}</thumb></fanart>{{ endif }}
+    {{ for u in unique_ids }}<uniqueid type="{u.kind}" default="{{ if u.is_default }}true{{ else }}false{{ endif }}">{u.value}</uniqueid>
+    {{ endfor }}{{ for g in genres }}
     <genre>{g}</genre>{{ endfor }}{{ for t in tags }}
     <tag>{t}</tag>{{ endfor }}
     <premiered>{premiered}</premiered>{{ if year }}

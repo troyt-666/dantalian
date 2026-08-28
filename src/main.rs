@@ -1,10 +1,11 @@
 use anyhow::Result;
 use clap::Parser;
 use dantalian::bangumi;
-use dantalian::dantalian::{dantalian, dantalian_movie};
+use dantalian::dantalian::{dantalian, dantalian_movie, dantalian_tmdb_movie, dantalian_tmdb_tv};
+use dantalian::tmdb;
 use dantalian::{info, logger::Logger};
 use log::set_logger;
-use options::{BgmCmd, BgmSubCmd, Opts, SubCmd};
+use options::{BgmCmd, BgmSubCmd, Opts, SubCmd, TmdbCmd, TmdbSubCmd};
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
@@ -14,15 +15,21 @@ mod options;
 async fn main() -> Result<()> {
     let Opts {
         access_token,
+        tmdb_token,
         verbose,
         subcmd,
         force_all,
         force,
         source,
         movie_source,
+        tmdb_movie_source,
+        tmdb_tv_source,
     } = Opts::parse();
     if let Some(access_token) = access_token {
         bangumi::set_access_token(access_token);
+    }
+    if let Some(tmdb_token) = tmdb_token {
+        tmdb::set_access_token(tmdb_token);
     }
     match verbose {
         true => set_logger(Logger::init(log::LevelFilter::Trace)).unwrap(),
@@ -38,11 +45,57 @@ async fn main() -> Result<()> {
             for movie_source in movie_source {
                 dantalian_movie(&movie_source, &is_force).await?;
             }
+            for movie_source in tmdb_movie_source {
+                dantalian_tmdb_movie(&movie_source, &is_force).await?;
+            }
+            for tv_source in tmdb_tv_source {
+                dantalian_tmdb_tv(&tv_source, &is_force).await?;
+            }
             Ok(())
         }
         Some(subcmd) => match subcmd {
             SubCmd::Bgm(sub_opts) => bgm_cmd(sub_opts).await,
+            SubCmd::Tmdb(sub_opts) => tmdb_cmd(sub_opts).await,
         },
+    }
+}
+
+async fn tmdb_cmd(opts: TmdbCmd) -> Result<()> {
+    match opts.subcmd {
+        TmdbSubCmd::SearchMovie(search_opts) => {
+            let keyword = search_opts.keyword.join(" ");
+            let response =
+                tmdb::search_movies(&keyword, search_opts.year, &search_opts.language).await?;
+            info!("found {} result(s):\n", response.total_results);
+            for item in response.results {
+                info!("{}", item);
+            }
+            Ok(())
+        }
+        TmdbSubCmd::SearchTv(search_opts) => {
+            let keyword = search_opts.keyword.join(" ");
+            let response =
+                tmdb::search_tv(&keyword, search_opts.year, &search_opts.language).await?;
+            info!("found {} result(s):\n", response.total_results);
+            for item in response.results {
+                info!("{}", item);
+            }
+            Ok(())
+        }
+        TmdbSubCmd::GetMovie(get_opts) => {
+            info!(
+                "{:#?}",
+                tmdb::get_movie(get_opts.id, &get_opts.language).await?
+            );
+            Ok(())
+        }
+        TmdbSubCmd::GetTv(get_opts) => {
+            info!(
+                "{:#?}",
+                tmdb::get_tv(get_opts.id, &get_opts.language).await?
+            );
+            Ok(())
+        }
     }
 }
 

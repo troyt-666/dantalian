@@ -4,3 +4,4 @@ pub mod dantalian;
 #[macro_use]
 pub mod logger;
 pub mod nfogen;
+pub mod tmdb;

@@ -9,12 +9,17 @@ pub use movie::dantalian_movie;
 use std::fs::File;
 use std::io::Write;
 use std::path::Path;
+pub use tmdb_movie::dantalian_tmdb_movie;
+pub use tmdb_tv::dantalian_tmdb_tv;
 use walkdir::WalkDir;
 
 mod config;
 mod data;
 mod job;
 mod movie;
+mod tmdb_common;
+mod tmdb_movie;
+mod tmdb_tv;
 mod utils;
 
 pub async fn dantalian<F: Fn(String) -> bool>(source: &Path, is_force: &F) -> Result<()> {

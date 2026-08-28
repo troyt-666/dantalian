@@ -142,13 +142,13 @@ mod tests {
     #[test]
     fn explicit_movie_premiere_overrides_home_video_date() {
         let mut movie = Movie {
-            uid: 1,
             title: String::new(),
             original_title: String::new(),
-            rating_value: 0.0,
-            rating_votes: 0,
+            ratings: vec![],
+            unique_ids: vec![],
             plot: String::new(),
             poster: None,
+            fanart: None,
             year: Some(2020),
             runtime: None,
             genres: vec![],

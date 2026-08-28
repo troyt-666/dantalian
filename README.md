@@ -5,6 +5,9 @@
 Dantalian is a nfo file generator for your anime, source from [bangumi](https://bangumi.tv/). You can use these nfo
 files with media center software such as [Jellyfin](https://jellyfin.org/), [Kodi](https://kodi.tv/).
 
+This fork also supports general movies and TV shows through TMDB. TMDB metadata defaults to Simplified Chinese and
+falls back to the title's original language, then English, when a localized title or overview is missing.
+
 Some Popular scrapers, such as ["The Movie DB"](https://www.themoviedb.org), ["The TV DB"](https://thetvdb.com/)
 put all episodes not published in TV into Season 00, including all SPs and OVAs. It is not suitable for anime,
 which usually has multiple OVAs or SPs series, especially the
@@ -199,6 +202,42 @@ dantalian --source <source folders>
 ```
 
 You can specify multiple source folders at once.
+
+### TMDB movies and TV shows
+
+Pass a TMDB API Read Access Token with `--tmdb-token`, or load it from a private file in a wrapper command. Movie and
+TV roots use separate options so Bangumi and TMDB sources cannot be mixed accidentally:
+
+```sh
+dantalian --tmdb-token "$TMDB_READ_TOKEN" --tmdb-movie-source /path/to/Movie
+dantalian --tmdb-token "$TMDB_READ_TOKEN" --tmdb-tv-source /path/to/TV
+```
+
+Each title folder uses `dantalian.toml`:
+
+```toml
+tmdb_id = 535167
+language = "zh-CN"
+fallback_languages = ["ja-JP", "en-US"]
+```
+
+TV releases without an explicit season in every filename can define a named episode capture and a default season:
+
+```toml
+episode_re = "(?i)\\.E(?P<episode>\\d{2})\\."
+default_season = 1
+```
+
+Movie folders produce `movie.nfo`, video-specific NFO files, `poster.jpg`, and `fanart.jpg`. TV folders produce
+`tvshow.nfo`, video-specific episode NFO files, show and season artwork, and episode thumbnails. TV video filenames
+must contain an `SxxEyy` number. Existing NFO and artwork files are preserved unless force mode is selected.
+
+TMDB search and inspection are available without touching a media directory:
+
+```sh
+dantalian --tmdb-token "$TMDB_READ_TOKEN" tmdb search-movie "The Wandering Earth" --year 2019
+dantalian --tmdb-token "$TMDB_READ_TOKEN" tmdb search-tv "The Expanse" --year 2015
+```
 
 As the file is used and played, the media center software will modify nfo files to store dynamic data. Because of this
 situation, dantalian will not re-generate nfo files if it already exists. If you want to force re-generate, you can add

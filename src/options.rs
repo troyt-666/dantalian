@@ -13,6 +13,12 @@ pub struct Opts {
     /// movies source folder. can be used multiple times to decide multi source
     #[clap(short, long, required = false, value_hint=ValueHint::DirPath)]
     pub movie_source: Vec<PathBuf>,
+    /// movie source folders scraped with TMDB
+    #[clap(long, required = false, value_hint=ValueHint::DirPath)]
+    pub tmdb_movie_source: Vec<PathBuf>,
+    /// TV source folders scraped with TMDB
+    #[clap(long, required = false, value_hint=ValueHint::DirPath)]
+    pub tmdb_tv_source: Vec<PathBuf>,
     /// paths which you want to force re-generate
     #[clap(long, required = false)]
     pub force: Vec<String>,
@@ -22,6 +28,9 @@ pub struct Opts {
     /// use your personal token to access more subject. get one from https://next.bgm.tv/demo/access-token/create.
     #[clap(long)]
     pub access_token: Option<String>,
+    /// TMDB API Read Access Token
+    #[clap(long)]
+    pub tmdb_token: Option<String>,
     #[clap(subcommand)]
     pub subcmd: Option<SubCmd>,
 }
@@ -29,6 +38,47 @@ pub struct Opts {
 #[derive(Parser)]
 pub enum SubCmd {
     Bgm(BgmCmd),
+    Tmdb(TmdbCmd),
+}
+
+/// CLI tools for TMDB APIs
+#[derive(Parser)]
+pub struct TmdbCmd {
+    #[clap(subcommand)]
+    pub subcmd: TmdbSubCmd,
+}
+
+#[derive(Parser)]
+pub enum TmdbSubCmd {
+    /// search movies in TMDB
+    SearchMovie(TmdbSearchOpt),
+    /// search TV shows in TMDB
+    SearchTv(TmdbSearchOpt),
+    /// get a movie by TMDB id
+    GetMovie(TmdbGetOpt),
+    /// get a TV show by TMDB id
+    GetTv(TmdbGetOpt),
+}
+
+#[derive(Parser)]
+pub struct TmdbSearchOpt {
+    /// search keywords
+    pub keyword: Vec<String>,
+    /// release year or first air year
+    #[clap(long)]
+    pub year: Option<u32>,
+    /// metadata language
+    #[clap(long, default_value = "zh-CN")]
+    pub language: String,
+}
+
+#[derive(Parser)]
+pub struct TmdbGetOpt {
+    /// TMDB id
+    pub id: u32,
+    /// metadata language
+    #[clap(long, default_value = "zh-CN")]
+    pub language: String,
 }
 
 /// cli tools to play with bangumi apis

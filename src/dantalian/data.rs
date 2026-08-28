@@ -1,5 +1,5 @@
 use crate::bangumi::{BgmAnime, EpisodeType};
-use crate::nfogen::{Actor, Episode, TVShow};
+use crate::nfogen::{Actor, Episode, Rating, TVShow, UniqueId};
 use std::rc::Rc;
 
 // AnimeData store data for generator nfo files.
@@ -28,15 +28,25 @@ impl From<BgmAnime> for AnimeData {
         let mut data = AnimeData {
             episodes: Vec::new(),
             tvshow: TVShow {
-                uid: subject.id,
                 title: subject.name_cn,
                 original_title: subject.name,
-                rating_value: subject.rating.score,
-                rating_votes: subject.rating.total,
-                has_sp: false,
+                ratings: vec![Rating {
+                    name: "bangumi".into(),
+                    max: 10,
+                    is_default: true,
+                    value: subject.rating.score,
+                    votes: Some(subject.rating.total),
+                }],
+                unique_ids: vec![UniqueId {
+                    kind: "bangumi".into(),
+                    is_default: true,
+                    value: subject.id.to_string(),
+                }],
+                season_count: 1,
                 eps_count: subject.total_episodes,
                 plot: subject.summary,
                 poster: subject.images.map(|img| img.large),
+                fanart: None,
                 genres: vec![],
                 tags: vec![],
                 premiered: subject.date.as_deref().unwrap_or("*").to_string(),
@@ -87,17 +97,25 @@ impl From<BgmAnime> for AnimeData {
         for be in episodes {
             if !be.is_empty() {
                 let is_sp = be.episode_type == EpisodeType::Sp;
-                data.tvshow.has_sp = data.tvshow.has_sp || is_sp;
+                if is_sp {
+                    data.tvshow.season_count = 2;
+                }
                 data.episodes.push(Episode {
-                    uid: be.id,
                     title: be.name_cn,
                     original_title: be.name,
                     show_title: String::from(&data.tvshow.title),
-                    rating_value: None,
-                    rating_votes: None,
+                    ratings: vec![],
+                    unique_ids: vec![UniqueId {
+                        kind: "bangumi".into(),
+                        is_default: true,
+                        value: be.id.to_string(),
+                    }],
+                    season: if is_sp { 0 } else { 1 },
                     ep_index: format!("{}", be.sort),
                     is_sp,
                     plot: be.desc,
+                    thumb: None,
+                    runtime: be.duration_seconds.map(|seconds| seconds.div_ceil(60)),
                     directors: Rc::clone(&rc_directors),
                     credits: Rc::clone(&rc_credits),
                     premiered: String::from(&data.tvshow.premiered),

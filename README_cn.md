@@ -3,6 +3,9 @@
 dantalian 是一个以 [bangumi](https://bangumi.tv/) 为数据源的动画作品的 NFO 文件生成器，
 可以用于 [Jellyfin](https://jellyfin.org/)，[Kodi](https://kodi.tv/) 等媒体中心软件或播放器。
 
+本 fork 还能通过 TMDB 处理普通电影和电视剧。TMDB 元数据默认请求简体中文；中文标题或简介缺失时，
+依次回退到作品原始语言和英文。
+
 通常所用的刮削器例如，[The Movie DB](https://www.themoviedb.org)、[The TV DB](https://thetvdb.com/)，
 采用将所有非 TV 剧集（OVA，总集篇，特别篇）不加区分放在 S00 中，这对 OVA 经常自成系列的日本动画并不友好，
 特别体现在[《物语系列》](https://www.themoviedb.org/tv/46195/season/0)这样的动画中。AniDB 对其进行了区分，
@@ -185,6 +188,41 @@ dantalian --source <source folders>
 ```
 
 可以一次指定多个源文件夹。
+
+### TMDB 电影和电视剧
+
+TMDB 使用 API Read Access Token。电影和电视剧使用独立参数，避免与 Bangumi 动画源混用：
+
+```sh
+dantalian --tmdb-token "$TMDB_READ_TOKEN" --tmdb-movie-source /path/to/Movie
+dantalian --tmdb-token "$TMDB_READ_TOKEN" --tmdb-tv-source /path/to/TV
+```
+
+每个作品目录使用 `dantalian.toml`：
+
+```toml
+tmdb_id = 535167
+language = "zh-CN"
+fallback_languages = ["ja-JP", "en-US"]
+```
+
+如果电视剧发布文件名只有 `E01`、没有季号，可以配置命名捕获和默认季：
+
+```toml
+episode_re = "(?i)\\.E(?P<episode>\\d{2})\\."
+default_season = 1
+```
+
+电影会生成 `movie.nfo`、视频同名 NFO、`poster.jpg` 和 `fanart.jpg`。电视剧会生成 `tvshow.nfo`、
+每集视频同名 NFO、作品/季海报、背景图和单集缩略图。电视剧文件名必须包含 `SxxEyy`。除非显式使用
+强制模式，否则不会覆盖已有 NFO 和图片。
+
+可以先搜索核对，不接触媒体目录：
+
+```sh
+dantalian --tmdb-token "$TMDB_READ_TOKEN" tmdb search-movie "流浪地球" --year 2019
+dantalian --tmdb-token "$TMDB_READ_TOKEN" tmdb search-tv "三体" --year 2023
+```
 
 伴随文件的使用和播放，媒体中心软件可能修改 nfo 文件的内容存储动态数据，因此 dantalian 在检测到 nfo 文件后，
 将跳过对应文件。如果想强制重新生成的话，可以添加选项 `--force <作品文件夹名>`，可以指定多个文件夹。

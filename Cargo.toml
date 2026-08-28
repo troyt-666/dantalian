@@ -3,7 +3,7 @@ name = "dantalian"
 version = "0.4.6"
 authors = ["Nanozuki Crows <nanozuki.crows@gmail.com>"]
 edition = "2024"
-description = "A nfo file generator for your anime. Source from https://bangumi.tv/."
+description = "A CLI NFO generator using Bangumi for anime and TMDB for movies and TV."
 license = "GPL-3.0-or-later"
 repository = "https://github.com/nanozuki/dantalian/"
 
